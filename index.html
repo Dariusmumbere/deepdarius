@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DeepSeek Chatbot</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="chat-container">
@@ -15,9 +15,10 @@
                 <i class="fas fa-robot"></i>
                 <h1>DeepSeek AI</h1>
             </div>
-            <div class="status">
-                <span class="status-indicator"></span>
-                <span>Online</span>
+            <div class="header-actions">
+                <button id="clear-chat" title="Clear conversation">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
             </div>
         </header>
         
@@ -25,11 +26,16 @@
             <!-- Messages will appear here -->
         </div>
         
-        <div class="chat-input">
-            <textarea id="user-input" placeholder="Type your message here..." rows="1"></textarea>
-            <button id="send-button">
-                <i class="fas fa-paper-plane"></i>
-            </button>
+        <div class="chat-input-container">
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="Type your message..." autocomplete="off" required>
+                <button type="submit" id="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </form>
+            <div class="input-footer">
+                <small>DeepSeek may produce inaccurate information about people, places, or facts.</small>
+            </div>
         </div>
     </div>
 
