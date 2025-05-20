@@ -1,103 +1,95 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const chatMessages = document.getElementById('chat-messages');
+    const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
-    const sendButton = document.getElementById('send-button');
+    const chatMessages = document.getElementById('chat-messages');
+    const clearChatBtn = document.getElementById('clear-chat');
     
-    // Auto-resize textarea
-    userInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
+    // Load chat history from localStorage
+    loadChatHistory();
     
-    // Send message on button click
-    sendButton.addEventListener('click', sendMessage);
+    // Focus input field on load
+    userInput.focus();
     
-    // Send message on Enter key (but allow Shift+Enter for new line)
-    userInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
-    
-    // Initial greeting
-    setTimeout(() => {
-        addBotMessage("Hello! I'm your DeepSeek AI assistant. How can I help you today?");
-    }, 500);
-    
-    async function sendMessage() {
+    // Form submission
+    chatForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
         const message = userInput.value.trim();
-        if (!message) return;
-        
-        // Add user message to chat
-        addUserMessage(message);
-        userInput.value = '';
-        userInput.style.height = 'auto';
-        
-        // Show typing indicator
-        showTypingIndicator();
-        
-        try {
-            // Send message to backend
-            const response = await fetch('http://localhost:8000/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ message: message })
-            });
+        if (message) {
+            addMessage('user', message);
+            userInput.value = '';
             
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+            // Show typing indicator
+            showTypingIndicator();
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const botMessage = data.choices[0].message.content;
+                
+                // Remove typing indicator and add bot message
+                removeTypingIndicator();
+                addMessage('bot', botMessage);
+                
+                // Save to chat history
+                saveChatHistory();
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('bot', `Sorry, I encountered an error: ${error.message}`);
+                console.error('Error:', error);
             }
-            
-            const data = await response.json();
-            
-            // Remove typing indicator and add bot response
-            removeTypingIndicator();
-            addBotMessage(data.response);
-        } catch (error) {
-            console.error('Error:', error);
-            removeTypingIndicator();
-            addBotMessage("Sorry, I'm having trouble connecting to the server. Please try again later.");
         }
-    }
+    });
     
-    function addUserMessage(text) {
+    // Clear chat history
+    clearChatBtn.addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear the conversation?')) {
+            localStorage.removeItem('chatHistory');
+            chatMessages.innerHTML = '';
+        }
+    });
+    
+    // Add a message to the chat
+    function addMessage(role, content) {
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'message user-message';
-        messageDiv.innerHTML = `
-            <div class="message-text">${escapeHtml(text)}</div>
-            <div class="message-time">${getCurrentTime()}</div>
-        `;
+        messageDiv.classList.add('message', `${role}-message`);
+        
+        const messageContent = document.createElement('div');
+        messageContent.textContent = content;
+        
+        const messageTime = document.createElement('span');
+        messageTime.classList.add('message-time');
+        messageTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        
+        messageDiv.appendChild(messageContent);
+        messageDiv.appendChild(messageTime);
         chatMessages.appendChild(messageDiv);
-        scrollToBottom();
+        
+        // Scroll to bottom
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
-    function addBotMessage(text) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = 'message bot-message';
-        messageDiv.innerHTML = `
-            <div class="message-text">${formatBotResponse(text)}</div>
-            <div class="message-time">${getCurrentTime()}</div>
-        `;
-        chatMessages.appendChild(messageDiv);
-        scrollToBottom();
-    }
-    
+    // Show typing indicator
     function showTypingIndicator() {
         const typingDiv = document.createElement('div');
+        typingDiv.classList.add('typing-indicator');
         typingDiv.id = 'typing-indicator';
-        typingDiv.className = 'message bot-message typing-indicator';
-        typingDiv.innerHTML = `
-            <span></span>
-            <span></span>
-            <span></span>
-        `;
+        typingDiv.innerHTML = '<span></span><span></span><span></span>';
         chatMessages.appendChild(typingDiv);
-        scrollToBottom();
+        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     
+    // Remove typing indicator
     function removeTypingIndicator() {
         const typingIndicator = document.getElementById('typing-indicator');
         if (typingIndicator) {
@@ -105,34 +97,28 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function scrollToBottom() {
-        chatMessages.scrollTop = chatMessages.scrollHeight;
+    // Save chat history to localStorage
+    function saveChatHistory() {
+        const messages = [];
+        document.querySelectorAll('.message').forEach(msg => {
+            const role = msg.classList.contains('user-message') ? 'user' : 'bot';
+            const content = msg.querySelector('div').textContent;
+            const time = msg.querySelector('.message-time').textContent;
+            messages.push({ role, content, time });
+        });
+        localStorage.setItem('chatHistory', JSON.stringify(messages));
     }
     
-    function getCurrentTime() {
-        const now = new Date();
-        return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    function formatBotResponse(text) {
-        // Simple markdown formatting
-        let formatted = escapeHtml(text);
-        
-        // Convert **bold** to <strong>
-        formatted = formatted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        
-        // Convert *italic* to <em>
-        formatted = formatted.replace(/\*(.*?)\*/g, '<em>$1</em>');
-        
-        // Convert newlines to <br>
-        formatted = formatted.replace(/\n/g, '<br>');
-        
-        return formatted;
+    // Load chat history from localStorage
+    function loadChatHistory() {
+        const history = localStorage.getItem('chatHistory');
+        if (history) {
+            JSON.parse(history).forEach(msg => {
+                addMessage(msg.role, msg.content);
+            });
+        } else {
+            // Add welcome message if no history exists
+            addMessage('bot', "Hello! I'm your DeepSeek AI assistant. How can I help you today?");
+        }
     }
 });
